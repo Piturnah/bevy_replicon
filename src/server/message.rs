@@ -7,7 +7,7 @@ use super::server_tick::ServerTick;
 use crate::{
     prelude::*,
     shared::{
-        event::{
+        message::{
             ctx::{ServerReceiveCtx, ServerSendCtx},
             remote_event_registry::RemoteEventRegistry,
             server_event::BufferedServerEvents,

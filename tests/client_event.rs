@@ -2,7 +2,7 @@ use bevy::{ecs::entity::MapEntities, prelude::*, state::app::StatesPlugin, time:
 use bevy_replicon::{
     prelude::*,
     shared::{
-        event::remote_event_registry::RemoteEventRegistry, server_entity_map::ServerEntityMap,
+        message::remote_event_registry::RemoteEventRegistry, server_entity_map::ServerEntityMap,
     },
     test_app::ServerTestAppExt,
 };
