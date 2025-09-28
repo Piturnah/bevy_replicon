@@ -2,10 +2,8 @@ use core::any::TypeId;
 
 use bevy::prelude::*;
 
-use super::{
-    client_event::ClientEvent, client_trigger::ClientTrigger, server_event::ServerEvent,
-    server_trigger::ServerTrigger,
-};
+use super::{client::ClientEvent, server::ServerEvent};
+use crate::shared::event::{client::ClientTrigger, server::ServerTrigger};
 
 /// Registered server and client events.
 #[derive(Resource, Default)]
@@ -27,11 +25,11 @@ impl RemoteEventRegistry {
         self.client_events.push(event);
     }
 
-    pub(super) fn register_server_trigger(&mut self, trigger: ServerTrigger) {
+    pub(crate) fn register_server_trigger(&mut self, trigger: ServerTrigger) {
         self.server_triggers.push(trigger);
     }
 
-    pub(super) fn register_client_trigger(&mut self, trigger: ClientTrigger) {
+    pub(crate) fn register_client_trigger(&mut self, trigger: ClientTrigger) {
         self.client_triggers.push(trigger);
     }
 
@@ -39,7 +37,7 @@ impl RemoteEventRegistry {
         self.server_events.iter_mut()
     }
 
-    pub(super) fn iter_server_triggers_mut(&mut self) -> impl Iterator<Item = &mut ServerTrigger> {
+    pub(crate) fn iter_server_triggers_mut(&mut self) -> impl Iterator<Item = &mut ServerTrigger> {
         self.server_triggers.iter_mut()
     }
 

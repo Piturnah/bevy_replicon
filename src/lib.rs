@@ -715,11 +715,13 @@ pub mod prelude {
                 server_messages::ServerMessages,
             },
             client_id::ClientId,
+            event::{
+                client::{ClientTriggerAppExt, ClientTriggerExt},
+                server::{ServerTriggerAppExt, ServerTriggerExt},
+            },
             message::{
-                client_event::{ClientEventAppExt, FromClient},
-                client_trigger::{ClientTriggerAppExt, ClientTriggerExt},
-                server_event::{SendMode, ServerEventAppExt, ToClients},
-                server_trigger::{ServerTriggerAppExt, ServerTriggerExt},
+                client::{ClientEventAppExt, FromClient},
+                server::{SendMode, ServerEventAppExt, ToClients},
             },
             protocol::{ProtocolHash, ProtocolHasher, ProtocolMismatch},
             replication::{

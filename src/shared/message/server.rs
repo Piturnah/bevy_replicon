@@ -218,7 +218,7 @@ pub(crate) struct ServerEvent {
     /// Events like a chat message event do not have to wait for replication to
     /// be synced. If set to `true`, the event will always be applied
     /// immediately.
-    pub(super) independent: bool,
+    pub(crate) independent: bool,
 
     /// ID of [`Events<E>`].
     events_id: ComponentId,
@@ -243,7 +243,7 @@ pub(crate) struct ServerEvent {
 }
 
 impl ServerEvent {
-    pub(super) fn new<E: Message, I: 'static>(
+    pub(crate) fn new<E: Message, I: 'static>(
         app: &mut App,
         channel: Channel,
         event_fns: EventFns<ServerSendCtx, ClientReceiveCtx, E, I>,

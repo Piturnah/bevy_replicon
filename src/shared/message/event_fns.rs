@@ -118,7 +118,7 @@ impl<S, D, E: 'static, I: 'static> From<EventFns<S, D, E, I>> for UntypedEventFn
 /// Since closures can't be used, we provide outer functions that accept regular serialization functions.
 /// By default, these outer functions simply call the inner function, but they can be overridden
 /// to write common serde logic.
-pub(super) struct EventFns<S, D, E, I = E> {
+pub(crate) struct EventFns<S, D, E, I = E> {
     outer_serialize: OuterSerializeFn<S, E, I>,
     outer_deserialize: OuterDeserializeFn<D, E, I>,
     serialize: EventSerializeFn<S, I>,
@@ -127,7 +127,7 @@ pub(super) struct EventFns<S, D, E, I = E> {
 
 impl<S, D, E> EventFns<S, D, E, E> {
     /// Creates a new instance with default outer functions.
-    pub(super) fn new(
+    pub(crate) fn new(
         serialize: EventSerializeFn<S, E>,
         deserialize: EventDeserializeFn<D, E>,
     ) -> Self {
@@ -142,7 +142,7 @@ impl<S, D, E> EventFns<S, D, E, E> {
 
 impl<S, D, E, I> EventFns<S, D, E, I> {
     /// Overrides current outer functions.
-    pub(super) fn with_outer<T>(
+    pub(crate) fn with_outer<T>(
         self,
         outer_serialize: OuterSerializeFn<S, T, I>,
         outer_deserialize: OuterDeserializeFn<D, T, I>,

@@ -1,5 +1,6 @@
 pub mod backend;
 pub mod client_id;
+pub mod event;
 pub mod message;
 pub mod protocol;
 pub mod replication;

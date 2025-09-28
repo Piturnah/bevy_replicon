@@ -29,7 +29,7 @@ use crate::{
     prelude::*,
     shared::{
         backend::channels::ClientChannel,
-        message::server_event::BufferedServerEvents,
+        message::server::BufferedServerEvents,
         replication::{
             client_ticks::{ClientTicks, EntityBuffer},
             registry::{

@@ -10,7 +10,7 @@ use crate::{
         message::{
             ctx::{ServerReceiveCtx, ServerSendCtx},
             remote_event_registry::RemoteEventRegistry,
-            server_event::BufferedServerEvents,
+            server::BufferedServerEvents,
         },
         replication::client_ticks::ClientTicks,
     },

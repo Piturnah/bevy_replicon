@@ -5,14 +5,17 @@ use bytes::Bytes;
 use log::debug;
 use serde::{Serialize, de::DeserializeOwned};
 
-use super::{
-    client_event::{self, ClientEvent},
-    ctx::{ClientSendCtx, ServerReceiveCtx},
-    event_fns::{EventDeserializeFn, EventFns, EventSerializeFn},
-    remote_event_registry::RemoteEventRegistry,
-    remote_targets::RemoteTargets,
+use super::remote_targets::RemoteTargets;
+use crate::{
+    postcard_utils,
+    prelude::*,
+    shared::message::{
+        client::{self, ClientEvent},
+        ctx::{ClientSendCtx, ServerReceiveCtx},
+        event_fns::{EventDeserializeFn, EventFns, EventSerializeFn},
+        remote_event_registry::RemoteEventRegistry,
+    },
 };
-use crate::{postcard_utils, prelude::*};
 
 /// An extension trait for [`App`] for creating client triggers.
 ///
@@ -33,8 +36,8 @@ pub trait ClientTriggerAppExt {
     ) -> &mut Self {
         self.add_client_trigger_with(
             channel,
-            client_event::default_serialize::<E>,
-            client_event::default_deserialize::<E>,
+            client::default_serialize::<E>,
+            client::default_deserialize::<E>,
         )
     }
 
@@ -48,8 +51,8 @@ pub trait ClientTriggerAppExt {
     ) -> &mut Self {
         self.add_client_trigger_with(
             channel,
-            client_event::default_serialize_mapped::<E>,
-            client_event::default_deserialize::<E>,
+            client::default_serialize_mapped::<E>,
+            client::default_deserialize::<E>,
         )
     }
 

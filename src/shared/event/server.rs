@@ -5,14 +5,19 @@ use bytes::Bytes;
 use log::debug;
 use serde::{Serialize, de::DeserializeOwned};
 
-use super::{
-    ctx::{ClientReceiveCtx, ServerSendCtx},
-    event_fns::{EventDeserializeFn, EventFns, EventSerializeFn},
-    remote_event_registry::RemoteEventRegistry,
-    remote_targets::RemoteTargets,
-    server_event::{self, ServerEvent},
+use crate::{
+    postcard_utils,
+    prelude::*,
+    shared::{
+        event::remote_targets::RemoteTargets,
+        message::{
+            ctx::{ClientReceiveCtx, ServerSendCtx},
+            event_fns::{EventDeserializeFn, EventFns, EventSerializeFn},
+            remote_event_registry::RemoteEventRegistry,
+            server::{self, ServerEvent},
+        },
+    },
 };
-use crate::{postcard_utils, prelude::*};
 
 /// An extension trait for [`App`] for creating server triggers.
 ///
@@ -33,8 +38,8 @@ pub trait ServerTriggerAppExt {
     ) -> &mut Self {
         self.add_server_trigger_with(
             channel,
-            server_event::default_serialize::<E>,
-            server_event::default_deserialize::<E>,
+            server::default_serialize::<E>,
+            server::default_deserialize::<E>,
         )
     }
 
@@ -51,8 +56,8 @@ pub trait ServerTriggerAppExt {
     ) -> &mut Self {
         self.add_server_trigger_with(
             channel,
-            server_event::default_serialize::<E>,
-            server_event::default_deserialize_mapped::<E>,
+            server::default_serialize::<E>,
+            server::default_deserialize_mapped::<E>,
         )
     }
 
@@ -169,7 +174,7 @@ impl ServerTrigger {
         &self.event
     }
 
-    pub(super) fn event_mut(&mut self) -> &mut ServerEvent {
+    pub(crate) fn event_mut(&mut self) -> &mut ServerEvent {
         &mut self.event
     }
 }

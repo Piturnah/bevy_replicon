@@ -168,7 +168,7 @@ pub(crate) struct ClientEvent {
 }
 
 impl ClientEvent {
-    pub(super) fn new<E: Message, I: 'static>(
+    pub(crate) fn new<E: Message, I: 'static>(
         app: &mut App,
         channel: Channel,
         event_fns: EventFns<ClientSendCtx, ServerReceiveCtx, E, I>,
