@@ -29,48 +29,6 @@ fn regular() {
 }
 
 #[test]
-fn with_target() {
-    let mut server_app = App::new();
-    let mut client_app = App::new();
-    for app in [&mut server_app, &mut client_app] {
-        app.add_plugins((
-            MinimalPlugins,
-            StatesPlugin,
-            RepliconPlugins.set(ServerPlugin::new(PostUpdate)),
-        ))
-        .add_client_trigger::<TestEvent>(Channel::Ordered)
-        .finish();
-    }
-    server_app.init_resource::<TriggerReader<TestEvent>>();
-
-    server_app.connect_client(&mut client_app);
-
-    let server_entity = server_app.world_mut().spawn(Replicated).id();
-
-    server_app.update();
-    server_app.exchange_with_client(&mut client_app);
-    client_app.update();
-
-    let client_entity = *client_app
-        .world()
-        .resource::<ServerEntityMap>()
-        .to_client()
-        .get(&server_entity)
-        .unwrap();
-
-    client_app
-        .world_mut()
-        .client_trigger_targets(TestEvent, client_entity);
-
-    client_app.update();
-    server_app.exchange_with_client(&mut client_app);
-    server_app.update();
-
-    let reader = server_app.world().resource::<TriggerReader<TestEvent>>();
-    assert_eq!(reader.entities, [server_entity]);
-}
-
-#[test]
 fn mapped() {
     let mut server_app = App::new();
     let mut client_app = App::new();

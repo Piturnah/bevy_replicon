@@ -5,7 +5,6 @@ use bytes::Bytes;
 use log::debug;
 use serde::{Serialize, de::DeserializeOwned};
 
-use super::remote_targets::RemoteTargets;
 use crate::{
     postcard_utils,
     prelude::*,
@@ -156,11 +155,11 @@ fn trigger_serialize<'a, E>(
     message: &mut Vec<u8>,
     serialize: EventSerializeFn<ClientSendCtx<'a>, E>,
 ) -> Result<()> {
-    postcard_utils::to_extend_mut(&trigger.targets.len(), message)?;
-    for &entity in &trigger.targets {
-        let entity = ctx.get_mapped(entity);
-        postcard_utils::entity_to_extend_mut(&entity, message)?;
-    }
+    // postcard_utils::to_extend_mut(&trigger.targets.len(), message)?;
+    // for &entity in &trigger.targets {
+    //     let entity = ctx.get_mapped(entity);
+    //     postcard_utils::entity_to_extend_mut(&entity, message)?;
+    // }
 
     (serialize)(ctx, &trigger.event, message)
 }
@@ -174,16 +173,16 @@ fn trigger_deserialize<'a, E>(
     message: &mut Bytes,
     deserialize: EventDeserializeFn<ServerReceiveCtx<'a>, E>,
 ) -> Result<ClientTriggerEvent<E>> {
-    let len = postcard_utils::from_buf(message)?;
-    let mut targets = Vec::with_capacity(len);
-    for _ in 0..len {
-        let entity = postcard_utils::entity_from_buf(message)?;
-        targets.push(entity);
-    }
+    // let len = postcard_utils::from_buf(message)?;
+    // let mut targets = Vec::with_capacity(len);
+    // for _ in 0..len {
+    //     let entity = postcard_utils::entity_from_buf(message)?;
+    //     targets.push(entity);
+    // }
 
     let event = (deserialize)(ctx, message)?;
 
-    Ok(ClientTriggerEvent { event, targets })
+    Ok(ClientTriggerEvent { event })
 }
 
 /// Extension trait for triggering client events.
@@ -192,34 +191,17 @@ fn trigger_deserialize<'a, E>(
 pub trait ClientTriggerExt {
     /// Like [`Commands::trigger`], but triggers [`FromClient`] on server and locally if the client state is [`ClientState::Disconnected`].
     fn client_trigger(&mut self, event: impl Event);
-
-    /// Like [`Self::client_trigger`], but allows you to specify target entities, similar to [`Commands::trigger_targets`].
-    fn client_trigger_targets(&mut self, event: impl Event, targets: impl RemoteTargets);
 }
 
 impl ClientTriggerExt for Commands<'_, '_> {
     fn client_trigger(&mut self, event: impl Event) {
-        self.client_trigger_targets(event, []);
-    }
-
-    fn client_trigger_targets(&mut self, event: impl Event, targets: impl RemoteTargets) {
-        self.write_message(ClientTriggerEvent {
-            event,
-            targets: targets.into_entities(),
-        });
+        self.write_message(ClientTriggerEvent { event });
     }
 }
 
 impl ClientTriggerExt for World {
     fn client_trigger(&mut self, event: impl Event) {
-        self.client_trigger_targets(event, []);
-    }
-
-    fn client_trigger_targets(&mut self, event: impl Event, targets: impl RemoteTargets) {
-        self.write_message(ClientTriggerEvent {
-            event,
-            targets: targets.into_entities(),
-        });
+        self.write_message(ClientTriggerEvent { event });
     }
 }
 
@@ -231,5 +213,4 @@ impl ClientTriggerExt for World {
 #[derive(Message)]
 struct ClientTriggerEvent<E> {
     event: E,
-    targets: Vec<Entity>,
 }
