@@ -1,9 +1,4 @@
-use bevy::{
-    ecs::{entity::MapEntities, event::Events},
-    prelude::*,
-    state::app::StatesPlugin,
-    time::TimePlugin,
-};
+use bevy::{ecs::entity::MapEntities, prelude::*, state::app::StatesPlugin, time::TimePlugin};
 use bevy_replicon::{
     client::ServerUpdateTick,
     prelude::*,
@@ -24,7 +19,7 @@ fn channels() {
         StatesPlugin,
         RepliconPlugins.set(ServerPlugin::new(PostUpdate)),
     ))
-    .add_event::<NonRemoteEvent>()
+    .add_message::<NonRemoteEvent>()
     .add_server_event::<TestEvent>(Channel::Ordered)
     .finish();
 
@@ -50,14 +45,14 @@ fn regular() {
     server_app.connect_client(&mut client_app);
 
     let client = **client_app.world().resource::<TestClientEntity>();
-    for (mode, events_count) in [
+    for (mode, messages_count) in [
         (SendMode::Broadcast, 1),
         (SendMode::Direct(ClientId::Server), 0),
         (SendMode::Direct(client.into()), 1),
         (SendMode::BroadcastExcept(ClientId::Server), 1),
         (SendMode::BroadcastExcept(client.into()), 0),
     ] {
-        server_app.world_mut().send_event(ToClients {
+        server_app.world_mut().write_message(ToClients {
             mode,
             event: TestEvent,
         });
@@ -67,11 +62,11 @@ fn regular() {
         client_app.update();
         server_app.exchange_with_client(&mut client_app);
 
-        let mut events = client_app.world_mut().resource_mut::<Events<TestEvent>>();
+        let mut messages = client_app.world_mut().resource_mut::<Messages<TestEvent>>();
         assert_eq!(
-            events.drain().count(),
-            events_count,
-            "event should be emitted {events_count} times for {mode:?}"
+            messages.drain().count(),
+            messages_count,
+            "message should be received {messages_count} times for {mode:?}"
         );
     }
 }
@@ -94,7 +89,7 @@ fn mapped() {
 
     let server_entity = server_app.world_mut().spawn(Replicated).id();
 
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: EntityEvent(server_entity),
     });
@@ -112,7 +107,7 @@ fn mapped() {
 
     let mapped_entities: Vec<_> = client_app
         .world_mut()
-        .resource_mut::<Events<EntityEvent>>()
+        .resource_mut::<Messages<EntityEvent>>()
         .drain()
         .map(|event| event.0)
         .collect();
@@ -157,7 +152,7 @@ fn without_plugins() {
         (SendMode::BroadcastExcept(ClientId::Server), 1),
         (SendMode::BroadcastExcept(client.into()), 0),
     ] {
-        server_app.world_mut().send_event(ToClients {
+        server_app.world_mut().write_message(ToClients {
             mode,
             event: TestEvent,
         });
@@ -167,11 +162,11 @@ fn without_plugins() {
         client_app.update();
         server_app.exchange_with_client(&mut client_app);
 
-        let mut events = client_app.world_mut().resource_mut::<Events<TestEvent>>();
+        let mut messages = client_app.world_mut().resource_mut::<Messages<TestEvent>>();
         assert_eq!(
-            events.drain().count(),
+            messages.drain().count(),
             events_count,
-            "event should be emitted {events_count} times for {mode:?}"
+            "message should be received {events_count} times for {mode:?}"
         );
     }
 }
@@ -189,28 +184,28 @@ fn local_resending() {
 
     const CLIENT_ENTITY: Entity = Entity::from_raw_u32(1).unwrap();
     const PLACEHOLDER_CLIENT_ID: ClientId = ClientId::Client(CLIENT_ENTITY);
-    for (mode, events_count) in [
+    for (mode, messages_count) in [
         (SendMode::Broadcast, 1),
         (SendMode::Direct(ClientId::Server), 1),
         (SendMode::Direct(PLACEHOLDER_CLIENT_ID), 0),
         (SendMode::BroadcastExcept(ClientId::Server), 0),
         (SendMode::BroadcastExcept(PLACEHOLDER_CLIENT_ID), 1),
     ] {
-        app.world_mut().send_event(ToClients {
+        app.world_mut().write_message(ToClients {
             mode,
             event: TestEvent,
         });
 
         app.update();
 
-        let server_events = app.world().resource::<Events<ToClients<TestEvent>>>();
-        assert!(server_events.is_empty());
+        let server_messages = app.world().resource::<Messages<ToClients<TestEvent>>>();
+        assert!(server_messages.is_empty());
 
-        let mut events = app.world_mut().resource_mut::<Events<TestEvent>>();
+        let mut messages = app.world_mut().resource_mut::<Messages<TestEvent>>();
         assert_eq!(
-            events.drain().count(),
-            events_count,
-            "event should be emitted {events_count} times for {mode:?}"
+            messages.drain().count(),
+            messages_count,
+            "message should be received {messages_count} times for {mode:?}"
         );
     }
 }
@@ -227,7 +222,7 @@ fn server_buffering() {
 
     server_app.connect_client(&mut client_app);
 
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: TestEvent,
     });
@@ -237,8 +232,8 @@ fn server_buffering() {
     client_app.update();
     server_app.exchange_with_client(&mut client_app);
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert!(events.is_empty(), "event should be buffered on server");
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert!(messages.is_empty(), "message should be buffered on server");
 
     // Trigger replication.
     server_app
@@ -251,8 +246,8 @@ fn server_buffering() {
     client_app.update();
     server_app.exchange_with_client(&mut client_app);
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert_eq!(events.len(), 1);
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert_eq!(messages.len(), 1);
 }
 
 #[test]
@@ -283,7 +278,7 @@ fn client_queue() {
     let mut update_tick = client_app.world_mut().resource_mut::<ServerUpdateTick>();
     let previous_tick = *update_tick;
     *update_tick = Default::default();
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: TestEvent,
     });
@@ -292,15 +287,16 @@ fn client_queue() {
     server_app.exchange_with_client(&mut client_app);
     client_app.update();
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert!(events.is_empty());
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert!(messages.is_empty());
 
     // Restore the update tick to receive the event.
     *client_app.world_mut().resource_mut::<ServerUpdateTick>() = previous_tick;
 
     client_app.update();
 
-    assert_eq!(client_app.world().resource::<Events<TestEvent>>().len(), 1);
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert_eq!(messages.len(), 1);
 }
 
 #[test]
@@ -331,7 +327,7 @@ fn client_queue_and_mapping() {
     let mut update_tick = client_app.world_mut().resource_mut::<ServerUpdateTick>();
     let previous_tick = *update_tick;
     *update_tick = Default::default();
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: EntityEvent(server_entity),
     });
@@ -340,7 +336,7 @@ fn client_queue_and_mapping() {
     server_app.exchange_with_client(&mut client_app);
     client_app.update();
 
-    let events = client_app.world().resource::<Events<EntityEvent>>();
+    let events = client_app.world().resource::<Messages<EntityEvent>>();
     assert!(events.is_empty());
 
     // Restore the update tick to receive the event.
@@ -357,7 +353,7 @@ fn client_queue_and_mapping() {
 
     let mapped_entities: Vec<_> = client_app
         .world_mut()
-        .resource_mut::<Events<EntityEvent>>()
+        .resource_mut::<Messages<EntityEvent>>()
         .drain()
         .map(|event| event.0)
         .collect();
@@ -393,11 +389,11 @@ fn multiple_client_queues() {
     let mut update_tick = client_app.world_mut().resource_mut::<ServerUpdateTick>();
     let previous_tick = *update_tick;
     *update_tick = Default::default();
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: TestEvent,
     });
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: EntityEvent(Entity::PLACEHOLDER),
     });
@@ -406,22 +402,22 @@ fn multiple_client_queues() {
     server_app.exchange_with_client(&mut client_app);
     client_app.update();
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert!(events.is_empty());
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert!(messages.is_empty());
 
-    let mapped_events = client_app.world().resource::<Events<EntityEvent>>();
-    assert!(mapped_events.is_empty());
+    let mapped_messages = client_app.world().resource::<Messages<EntityEvent>>();
+    assert!(mapped_messages.is_empty());
 
     // Restore the update tick to receive the event.
     *client_app.world_mut().resource_mut::<ServerUpdateTick>() = previous_tick;
 
     client_app.update();
 
-    assert_eq!(client_app.world().resource::<Events<TestEvent>>().len(), 1);
-    assert_eq!(
-        client_app.world().resource::<Events<EntityEvent>>().len(),
-        1
-    );
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert_eq!(messages.len(), 1);
+
+    let mapped_messages = client_app.world().resource::<Messages<EntityEvent>>();
+    assert_eq!(mapped_messages.len(), 1);
 }
 
 #[test]
@@ -456,18 +452,18 @@ fn independent() {
     *client_app.world_mut().resource_mut::<ServerUpdateTick>() = Default::default();
 
     let client = **client_app.world().resource::<TestClientEntity>();
-    for (mode, events_count) in [
+    for (mode, messages_count) in [
         (SendMode::Broadcast, 1),
         (SendMode::Direct(ClientId::Server), 0),
         (SendMode::Direct(client.into()), 1),
         (SendMode::BroadcastExcept(ClientId::Server), 1),
         (SendMode::BroadcastExcept(client.into()), 0),
     ] {
-        server_app.world_mut().send_event(ToClients {
+        server_app.world_mut().write_message(ToClients {
             mode,
             event: TestEvent,
         });
-        server_app.world_mut().send_event(ToClients {
+        server_app.world_mut().write_message(ToClients {
             mode,
             event: IndependentEvent,
         });
@@ -477,18 +473,18 @@ fn independent() {
         client_app.update();
         server_app.exchange_with_client(&mut client_app);
 
-        let events = client_app.world().resource::<Events<TestEvent>>();
-        assert!(events.is_empty());
+        let messages = client_app.world().resource::<Messages<TestEvent>>();
+        assert!(messages.is_empty());
 
-        // Event should have already been triggered, even without resetting the tick,
+        // Message should have already been triggered, even without resetting the tick,
         // since it's independent.
-        let mut independent_events = client_app
+        let mut independent_messages = client_app
             .world_mut()
-            .resource_mut::<Events<IndependentEvent>>();
+            .resource_mut::<Messages<IndependentEvent>>();
         assert_eq!(
-            independent_events.drain().count(),
-            events_count,
-            "event should be emitted {events_count} times for {mode:?}"
+            independent_messages.drain().count(),
+            messages_count,
+            "message should be received {messages_count} times for {mode:?}"
         );
     }
 }
@@ -519,7 +515,7 @@ fn before_started_replication() {
         SendMode::BroadcastExcept(ClientId::Server),
         SendMode::Direct(client.into()),
     ] {
-        server_app.world_mut().send_event(ToClients {
+        server_app.world_mut().write_message(ToClients {
             mode,
             event: TestEvent,
         });
@@ -530,8 +526,8 @@ fn before_started_replication() {
     client_app.update();
     server_app.exchange_with_client(&mut client_app);
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert!(events.is_empty());
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert!(messages.is_empty());
 }
 
 #[test]
@@ -559,11 +555,11 @@ fn independent_before_started_replication() {
     // Spawn entity to trigger world change.
     server_app.world_mut().spawn(Replicated);
 
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: TestEvent,
     });
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: IndependentEvent,
     });
@@ -573,11 +569,11 @@ fn independent_before_started_replication() {
     client_app.update();
     server_app.exchange_with_client(&mut client_app);
 
-    let events = client_app.world().resource::<Events<TestEvent>>();
-    assert!(events.is_empty());
+    let messages = client_app.world().resource::<Messages<TestEvent>>();
+    assert!(messages.is_empty());
 
-    let independent_events = client_app.world().resource::<Events<IndependentEvent>>();
-    assert_eq!(independent_events.len(), 1);
+    let independent_messages = client_app.world().resource::<Messages<IndependentEvent>>();
+    assert_eq!(independent_messages.len(), 1);
 }
 
 #[test]
@@ -611,7 +607,7 @@ fn different_ticks() {
     // since only client 1 will receive a update message here.
     server_app.connect_client(&mut client_app2);
 
-    server_app.world_mut().send_event(ToClients {
+    server_app.world_mut().write_message(ToClients {
         mode: SendMode::Broadcast,
         event: TestEvent,
     });
@@ -624,18 +620,21 @@ fn different_ticks() {
     client_app1.update();
     client_app2.update();
 
-    assert_eq!(client_app1.world().resource::<Events<TestEvent>>().len(), 1);
-    assert_eq!(client_app2.world().resource::<Events<TestEvent>>().len(), 1);
+    let messages1 = client_app1.world().resource::<Messages<TestEvent>>();
+    assert_eq!(messages1.len(), 1);
+
+    let messages2 = client_app2.world().resource::<Messages<TestEvent>>();
+    assert_eq!(messages2.len(), 1);
 }
 
-#[derive(Event)]
+#[derive(Message)]
 struct NonRemoteEvent;
 
-#[derive(Event, Serialize, Deserialize)]
+#[derive(Message, Serialize, Deserialize)]
 struct TestEvent;
 
-#[derive(Event, Serialize, Deserialize)]
+#[derive(Message, Serialize, Deserialize)]
 struct IndependentEvent;
 
-#[derive(Event, Serialize, Deserialize, MapEntities)]
+#[derive(Message, Serialize, Deserialize, MapEntities)]
 struct EntityEvent(#[entities] Entity);
