@@ -17,7 +17,7 @@
 
 use core::fmt::{self, Formatter};
 
-use bevy::prelude::*;
+use bevy::{ecs::entity::EntityGeneration, prelude::*};
 use serde::{
     Deserializer, Serialize, Serializer,
     de::{self, SeqAccess, Visitor},
@@ -25,24 +25,23 @@ use serde::{
 
 /// Serializes an entity by writing its index and generation as separate numbers.
 ///
-/// This reduces the space used for serializers with varint encoding.
+/// This reduces the space required when using serializers with varint encoding.
 ///
-/// The index is first prepended with a bit flag to indicate if the generation
-/// is serialized or not. It is not serialized if <= 1; note that generations are [`NonZeroU32`](core::num::NonZeroU32)
-/// and a value of zero is used in [`Option<Entity>`] to signify [`None`], so generation 1 is the first
-/// generation.
+/// Since the index can never be [`u32::MAX`], we reuse that extra niche to indicate
+/// whether the generation isn't [`EntityGeneration::FIRST`]. If it doesn't,
+/// the generation is skipped during serialization.
 ///
 /// See also [`deserialize`] and [`postcard_utils::entity_to_extend_mut`](crate::postcard_utils::entity_to_extend_mut).
 pub fn serialize<S: Serializer>(entity: &Entity, serializer: S) -> Result<S::Ok, S::Error> {
-    let mut flagged_index = (entity.index() as u64) << 1;
-    let flag = entity.generation() > 1;
-    flagged_index |= flag as u64;
+    let mut index = entity.index() << 1;
+    let has_generation = entity.generation() != EntityGeneration::FIRST;
+    index |= has_generation as u32;
 
-    if flag {
-        let generation = entity.generation() - 1;
-        (flagged_index, generation).serialize(serializer)
+    if has_generation {
+        let generation = (entity.to_bits() >> 32) as u32; // TODO Bevy 0.17: use `entity.generation().to_bits()`.
+        (index, generation).serialize(serializer)
     } else {
-        flagged_index.serialize(serializer)
+        index.serialize(serializer)
     }
 }
 
@@ -63,22 +62,23 @@ impl<'de> Visitor<'de> for EntityVisitor {
     }
 
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let flagged_index: u64 = seq
+        let index: u32 = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
 
-        let has_generation = (flagged_index & 1) != 0;
+        let has_generation = (index & 1) != 0;
 
         let generation = if has_generation {
             let generation: u32 = seq
                 .next_element()?
                 .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-            generation as u64 + 1
+            generation as u64
         } else {
-            1
+            0
         };
 
-        let bits = (flagged_index >> 1) | (generation << 32);
+        // TODO Bevy 0.17: Use more ergonomic construction.
+        let bits = ((index >> 1) ^ u32::MAX) as u64 | (generation << 32);
         Ok(Entity::from_bits(bits))
     }
 }

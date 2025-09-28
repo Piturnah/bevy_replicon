@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn entity_without_generation() {
-        let expected_entity = Entity::from_raw(1);
+        let expected_entity = Entity::from_raw_u32(1).unwrap();
         let mut buffer = Vec::new();
         entity_to_extend_mut(&expected_entity, &mut buffer).unwrap();
         assert_eq!(buffer.len(), 1);
@@ -227,7 +227,8 @@ mod tests {
 
     #[test]
     fn entity_with_generation() {
-        let expected_entity = Entity::from_bits(1 | (2 << 32));
+        // TODO Bevy 0.17: Use more ergonomic construction.
+        let expected_entity = Entity::from_bits((1 ^ u32::MAX) as u64 | (1 << 32));
         let mut buffer = Vec::new();
         entity_to_extend_mut(&expected_entity, &mut buffer).unwrap();
         assert_eq!(buffer.len(), 2);
